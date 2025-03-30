@@ -38,6 +38,9 @@ jobs:
 
       - name: Gradle 실행 권한 부여
         run: chmod +x ./gradlew
+      - name: Gradle 빌드 (테스트 제외)
+        run: ./gradlew build -x test
+
 
       - name: Gradle 빌드
         run: ./gradlew build
