@@ -25,10 +25,10 @@ jobs:
           spring.datasource.url=${{ secrets.SPRING_DATASOURCE_URL }}
           spring.datasource.username=${{ secrets.SPRING_DATASOURCE_USERNAME }}
           spring.datasource.password=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-          spring.jpa.hibernate.ddl-auto=${{ secrets.SPRING_JPA_DDL_AUTO }}
-          spring.jpa.show-sql=${{ secrets.SPRING_JPA_SHOW_SQL }}
-          spring.jpa.properties.hibernate.format_sql=${{ secrets.SPRING_JPA_FORMAT_SQL }}
-          logging.level.org.hibernate.SQL=${{ secrets.LOGGING_SQL_LEVEL }}
+          spring.jpa.hibernate.ddl-auto=update
+          spring.jpa.show-sql=true
+          spring.jpa.properties.hibernate.format_sql=true
+          logging.level.org.hibernate.SQL=debug
           EOF
 
       - name: 실행 권한 부여
