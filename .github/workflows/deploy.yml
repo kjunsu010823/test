@@ -1,11 +1,11 @@
-name: Spring Boot CI/CD
+name: Docker CI/CD to EC2
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,28 +16,58 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: '21'
-          distribution: 'temurin'
 
       - name: application.properties 생성
         run: |
           mkdir -p src/main/resources
           cat <<EOF > src/main/resources/application.properties
-          spring.application.name=${{ secrets.SPRING_APPLICATION_NAME }}
-          server.port=${{ secrets.SERVER_PORT }}
-          
           spring.datasource.url=${{ secrets.SPRING_DATASOURCE_URL }}
           spring.datasource.username=${{ secrets.SPRING_DATASOURCE_USERNAME }}
           spring.datasource.password=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-          
           spring.jpa.hibernate.ddl-auto=${{ secrets.SPRING_JPA_DDL_AUTO }}
           spring.jpa.show-sql=${{ secrets.SPRING_JPA_SHOW_SQL }}
           spring.jpa.properties.hibernate.format_sql=${{ secrets.SPRING_JPA_FORMAT_SQL }}
-          
           logging.level.org.hibernate.SQL=${{ secrets.LOGGING_SQL_LEVEL }}
           EOF
 
-      - name: Gradle 실행 권한 부여
+      - name: 실행 권한 부여
         run: chmod +x ./gradlew
-      - name: Gradle 빌드 (테스트 제외)
+
+      - name: Gradle 빌드 (테스트 생략)
         run: ./gradlew build -x test
 
+      - name: Docker 이미지 빌드
+        run: docker build -t spring-app .
+
+      - name: EC2 서버에 Docker 초기화 작업
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            docker stop spring-app || true
+            docker rm spring-app || true
+            docker rmi spring-app || true
+            docker system prune -af
+            mkdir -p ~/app
+
+      - name: .jar 파일 EC2에 복사
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          source: "build/libs/*.jar"
+          target: "~/app/app.jar"
+
+      - name: EC2에서 Docker 이미지 빌드 및 컨테이너 실행
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            cd ~/app
+            docker build -t spring-app .
+            docker run -d --name spring-app -p 8080:8080 spring-app
